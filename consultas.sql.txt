@@ -1,0 +1,77 @@
+-- Projeto: Análise de vendas e-commerce (Olist)
+
+-- 1) Receita por mês
+
+SELECT strftime('%Y-%m', o.order_purchase_timestamp) as mes,
+     round(sum(i.price), 2) as receita
+FROM olist_orders_dataset o 
+JOIN olist_order_items_dataset i USING(order_id)
+WHERE o.order_status = 'delivered'
+GROUP by mes 
+ORDER by mes; 
+
+*Quanto a loja faturou em cada mês?
+A consulta soma o valor de todos os produtos vendidos e agrupa por mês. Serve para ver se as vendas estão crescendo, caindo ou caindo.
+
+-- 2) Receita por categoria, com ranking
+
+SELECT t.product_category_name_english as categoria,
+round(sum(i.price), 2) as receita
+FROM olist_order_items_dataset i
+JOIN olist_products_dataset p USING (product_id)
+JOIN product_category_name_translation t USING (product_category_name)
+GROUP by categoria 
+ORDER by receita DESC
+LIMIT 10;
+
+*Quais categorias de produto vendem mais?
+Ela soma a receita de cada categoria e mostra as 10 maiores.
+
+-- 3) Ticket médio por estado
+
+SELECT c.customer_state as estado,
+round(sum(i.price) / count(distinct o.order_id), 2) as ticket_medio
+FROM olist_orders_dataset o
+JOIN olist_order_items_dataset i USING (order_id)
+JOIN olist_customers_dataset c USING(customer_id)
+GROUP by estado 
+ORDER by ticket_medio DESC;
+
+*Em qual estado o cliente gasta mais por pedido?
+Divide o total vendido pelo número de pedidos de cada estado, o chamado ticket médio.
+
+-- 4) Nota média por situação da entrega (no prazo vs. atrasado)
+
+SELECT CASE WHEN o.order_delivered_customer_date > o.order_estimated_delivery_date
+THEN 'atrasado' ELSE 'no prazo' END as entrega,
+round(avg(r.review_score), 2) as nota_media,
+count(*) as pedidos
+FROM olist_orders_dataset o
+JOIN olist_order_reviews_dataset r USING (order_id)
+WHERE o.order_delivered_customer_date is not NULL
+GROUP by entrega;
+
+*Pedido atrasado deixa o cliente mais insatisfeito?
+Separa os pedidos em “atrasado” e “no prazo” e compara a nota média que os clientes deram em cada grupo
+
+-- 5) Crescimento mês a mês (window function LAG)
+
+WITH mensal AS (
+  SELECT
+    strftime('%Y-%m', o.order_purchase_timestamp) AS mes,
+    SUM(i.price) AS receita
+  FROM olist_orders_dataset o
+  JOIN olist_order_items_dataset i ON i.order_id = o.order_id
+  WHERE o.order_status = 'delivered'
+  GROUP BY 1
+)
+SELECT
+  mes,
+  ROUND(receita, 2) AS receita,
+  ROUND(100.0 * (receita - LAG(receita) OVER (ORDER BY mes))
+        / LAG(receita) OVER (ORDER BY mes), 1) AS crescimento_pct
+FROM mensal
+ORDER BY mes;
+
+Quanto as vendas cresceram de um mês para o outro?
+Compara a receita de cada mês com a do mês anterior e calcula a variação em porcentagem. Serve para medir o ritmo de crescimento
