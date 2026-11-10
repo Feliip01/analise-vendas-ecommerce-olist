@@ -40,3 +40,6 @@ SQL (consultas e window functions) e Excel (tabelas e gráficos).
 
 ## Prévia
 ![Resumo](imagens/resumo.png)
+
+   ![Receita mensal](imagens/receita_mensal.png)
+   ![Nota por entrega](imagens/entrega_nota.png)
